@@ -1,0 +1,3 @@
+<a href="{{ event.url }}">{{ event.title }}</a>
+{{ event.description|truncatewords:30 }}
+<strong>Date:</strong>{{ event.start_date|date:'SHORT_DATE_FORMAT' }}

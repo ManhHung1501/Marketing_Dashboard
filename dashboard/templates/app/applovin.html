@@ -1,0 +1,1557 @@
+<!doctype html>
+<html lang="en">
+
+{% load static %}
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet"
+        href="{% static 'app/plugins/vanilla-datetimerange-picker-main/dist/vanilla-datetimerange-picker.css' %}">
+
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+
+    <link href="{% static 'app/content/main.css' %}?v={% now 'U' %}" rel="stylesheet" />
+    <title>Dashboard</title>
+</head>
+
+<body>
+    <main>
+        <div class="app">
+            <div class="app-header d-flex justify-content-between align-items-center">
+                <button class="btn btn-primary">
+                    <i class="bi bi-sliders"></i>
+                </button>
+
+                <div class="account-box">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-fill"></i> {{user.username}}
+                        </button>
+                        <ul class="dropdown-menu  dropdown-menu-end" aria-labelledby="dropdownMenuButton1">
+                            <li><a class="dropdown-item" href="/admin">Accounts</a></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">Log out</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div class="app-content container-fluid g-0" x-data="{ open: false }">
+                <div class="page-header">
+                    <div class="page-title">Performance Reports</div>
+                    <div class="action-form-mb d-lg-none">
+                        <button class="btn btn-primary btn-sm btn-filter-mb" @click="open = ! open">
+                            Filter
+                        </button>
+                    </div>
+                    <form action="/" method="get" class="filter-wrap" :class="open ? 'active' : ''">
+                        <div class="action-form-table-mb d-lg-none mb-4">
+                            <button class="btn btn-danger btn-sm btn-filter-mb w-100" @click="open = false"
+                                type="button" @click="open = ! open">
+                                Close
+                            </button>
+                        </div>
+                        <div class="row">
+                            <div class="col-xxl-11">
+                                <div class="filter-wrap-all d-flex">
+                                    {% if request.GET.exclude_game_name %}
+                                    <div class="filter-box exclude"
+                                        x-data="dropdownCustom(new String('{{selected_game}}').length > 0 ? new String('{{selected_game}}').split(',') : [], false, true)">
+                                        {% else %}
+                                        <div class="filter-box include"
+                                            x-data="dropdownCustom(new String('{{selected_game}}').length > 0 ? new String('{{selected_game}}').split(',') : [])">
+                                            {% endif %}
+
+                                            <div class="filter-box-title">
+                                                Apps
+                                            </div>
+
+                                            <div class="filter-dropdown" @click.outside="open = false">
+                                                <input type="hidden" x-bind:value="formatResult()"
+                                                    x-bind:name="include ? 'include_game_name' : 'exclude_game_name'"
+                                                    class="form-control">
+
+                                                <div class="filter-dropdown-display" @click="toggle"
+                                                    x-text="displaySelect('All Apps ({{count_app}})')">
+                                                </div>
+
+                                                <div class="filter-dropdown-content" id="app-list" x-show="open"
+                                                    x-transition>
+                                                    <div class="filter-dropdown-header">
+                                                        <div class="filter-header-row">
+                                                            <div class="filter-header-row-content">
+                                                                <div class="filter-search-wrap">
+                                                                    <input type="text"
+                                                                        class="form-control filter-search-input search"
+                                                                        x-model="searchKey" placeholder="Search">
+                                                                    <div class="filter-search-icon">
+                                                                        <i class="bi bi-search"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="filter-header-row">
+                                                            <div class="filter-header-row-content">
+                                                                <div class="filter-condition">
+                                                                    <div class="filter-condition-item"
+                                                                        @click="addInclude()">
+                                                                        <div :class="include ? 'checked' : ''"
+                                                                            class="filter-label filter-label-include">
+                                                                            Include
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="filter-condition-item"
+                                                                        @click="addExclude()">
+                                                                        <div :class="exclude ? 'checked' : ''"
+                                                                            class="filter-label">
+                                                                            Exclude
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="filter-action">
+                                                                    <button
+                                                                        class="btn btn-danger btn-sm btn-filter-clear"
+                                                                        @click="reset" type="button">
+                                                                        Clear
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <ul class="filter-dropdown-list list">
+                                                        {% for obj in list_game %}
+                                                        <li class="filter-item" data-game-name="{{obj.game_name}}"
+                                                            @click='checkInList("{{obj.game_package_name}}") ? removeFromList("{{obj.game_package_name}}") : addToList("{{obj.game_package_name}}")'
+                                                            :class='$el.dataset.gameName.toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? "" : "hide"'>
+                                                            <div class="form-check">
+                                                                <div class="form-check-input"
+                                                                    :class="checkInList('{{obj.game_package_name}}') ? 'checked' : ''"
+                                                                    type="checkbox"></div>
+                                                            </div>
+
+                                                            <div class="filter-item-meta">
+                                                                <div class="filter-item-name name-app"
+                                                                    x-bind:id="new String('{{obj.game_package_name}}').replaceAll('.', '-')">
+                                                                    {{obj.game_name}}
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        {% endfor %}
+                                                    </ul>
+
+                                                    <div class="filter-dropdown-footer">
+                                                        <button type="button"
+                                                            class="btn btn-danger btn-sm btn-filter-cancel"
+                                                            @click="open = false">
+                                                            Cancel
+                                                        </button>
+                                                        <button type="submit"
+                                                            class="btn btn-primary btn-sm ms-2 btn-filter-submit">
+                                                            Apply
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <ul class="list-select">
+                                                    <template x-for="game in listGameSelect">
+                                                        <li class="list-select-item">
+                                                            <div class="list-select-name" x-text="game.name"></div>
+                                                            <div class="list-select-cancel"
+                                                                @click="removeFromList(game.id)">
+                                                                <i class="bi bi-dash-square"></i>
+                                                            </div>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div class="filter-box" x-data="dropdownCustom([{{selected_platform}}])">
+                                            <div class="filter-box-title">
+                                                Platform
+                                            </div>
+                                            <select name="platform" class="filter-dropdown-display">
+                                                <option value="">All</option>
+                                                {% if 'ios' in request.GET.platform %}
+                                                <option value="'ios'" selected>Ios</option>
+                                                {% else %}
+                                                <option value="'ios'">Ios</option>
+                                                {% endif %}
+
+                                                {% if 'android' in request.GET.platform %}
+                                                <option value="'android'" selected>Android</option>
+                                                {% else %}
+                                                <option value="'android'">Android</option>
+                                                {% endif %}
+
+                                                {% if 'instant_game' in request.GET.platform %}
+                                                <option value="'instant_game'" selected>Instant</option>
+                                                {% else %}
+                                                <option value="'instant_game'">Instant</option>
+                                                {% endif %}
+                                            </select>
+
+                                            <div class="filter-dropdown filter-dropdown-normal d-none"
+                                                @click.outside="open = false">
+                                                <!-- <input type="hidden" x-bind:value="formatResult()"
+                                                    x-bind:name="include ? 'platform' : 'platform'" class="form-control"> -->
+
+                                                <div class="filter-dropdown-display" @click="toggle"
+                                                    x-text="displaySelectNormal('All Platform (3)')">
+                                                </div>
+
+                                                <div class="filter-dropdown-content" id="app-platforms" x-show="open"
+                                                    x-transition>
+                                                    <div class="filter-dropdown-header">
+                                                        <div class="filter-header-row">
+                                                            <div class="filter-header-row-content">
+                                                                <div class="filter-action">
+                                                                    <button
+                                                                        class="btn btn-danger btn-sm btn-filter-clear"
+                                                                        @click="reset" type="button">
+                                                                        Clear
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <ul class="filter-dropdown-list list">
+                                                        <li class="filter-item" data-id="android"
+                                                            @click="checkInList('android') ? removeFromList('android') : addToList('android')">
+                                                            <div class="form-check">
+                                                                <div class="form-check-input"
+                                                                    :class="checkInList('android') ? 'checked' : ''"
+                                                                    type="checkbox"></div>
+                                                            </div>
+
+                                                            <div class="filter-item-meta">
+                                                                <div class="filter-item-name name-app">
+                                                                    Android
+                                                                </div>
+                                                            </div>
+                                                        </li>
+
+                                                        <li class="filter-item" data-id="ios"
+                                                            @click="checkInList('ios') ? removeFromList('ios') : addToList('ios')">
+                                                            <div class="form-check">
+                                                                <div class="form-check-input"
+                                                                    :class="checkInList('ios') ? 'checked' : ''"
+                                                                    type="checkbox"></div>
+                                                            </div>
+
+                                                            <div class="filter-item-meta">
+                                                                <div class="filter-item-name name-app">
+                                                                    Ios
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="filter-item" data-id="instant_game"
+                                                            @click="checkInList('instant_game') ? removeFromList('instant_game') : addToList('instant_game')">
+                                                            <div class="form-check">
+                                                                <div class="form-check-input"
+                                                                    :class="checkInList('instant_game') ? 'checked' : ''"
+                                                                    type="checkbox"></div>
+                                                            </div>
+
+                                                            <div class="filter-item-meta">
+                                                                <div class="filter-item-name name-app">
+                                                                    Instant
+                                                                </div>
+                                                            </div>
+                                                        </li>
+
+                                                    </ul>
+
+                                                    <div class="filter-dropdown-footer">
+                                                        <button type="button"
+                                                            class="btn btn-danger btn-sm btn-filter-cancel"
+                                                            @click="open = false">
+                                                            Cancel
+                                                        </button>
+                                                        <button type="submit"
+                                                            class="btn btn-primary btn-sm ms-2 btn-filter-submit">
+                                                            Apply
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {% if request.GET.exclude_country %}
+                                        <div class="filter-box"
+                                            x-data="dropdownCustom([{{selected_country}}], false, true)">
+                                            {% else %}
+                                            <div class="filter-box" x-data="dropdownCustom([{{selected_country}}])">
+                                                {% endif %}
+                                                <div class="filter-box-title">
+                                                    Countries
+                                                </div>
+
+                                                <div class="filter-dropdown" @click.outside="open = false">
+                                                    <input type="hidden"
+                                                        x-bind:value="formatResult().map((item, index) => `'${item}'`)"
+                                                        x-bind:name="include ? 'include_country' : 'exclude_country'"
+                                                        class="form-control">
+
+                                                    <div class="filter-dropdown-display" @click="toggle"
+                                                        x-text="displaySelect('All Countries ({{count_country}})')">
+                                                    </div>
+
+                                                    <div class="filter-dropdown-content filter-dropdown-content-countries"
+                                                        id="app-countries" x-show="open" x-transition>
+                                                        <div class="filter-dropdown-header">
+                                                            <div class="filter-header-row">
+                                                                <div class="filter-header-row-content">
+                                                                    <div class="filter-search-wrap">
+                                                                        <input type="text"
+                                                                            class="form-control filter-search-input search"
+                                                                            placeholder="Search" x-model="searchKey">
+                                                                        <div class="filter-search-icon">
+                                                                            <i class="bi bi-search"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="filter-header-row">
+                                                                <div class="filter-header-row-content">
+                                                                    <div class="filter-condition">
+                                                                        <div class="filter-condition-item"
+                                                                            @click="addInclude()">
+                                                                            <div :class="include ? 'checked' : ''"
+                                                                                class="filter-label filter-label-include">
+                                                                                Include
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-condition-item"
+                                                                            @click="addExclude()">
+                                                                            <div :class="exclude ? 'checked' : ''"
+                                                                                class="filter-label">
+                                                                                Exclude
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="filter-action">
+                                                                        <button
+                                                                            class="btn btn-danger btn-sm btn-filter-clear"
+                                                                            @click="reset" type="button">
+                                                                            Clear
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="filter-dropdown-list list">
+                                                            <!-- TOP COUNTRIES -->
+                                                            <div class="filter-dropdown-list-col"
+                                                                x-data="{ topCountry: [{'name': 'Australia', 'id': 'AU'}, {'name': 'Brazil', 'id': 'BR'}, {'name': 'China', 'id': 'CN'},{'name': 'Germany', 'id': 'DE'},{'name': 'United Kingdom', 'id': 'GB'},{'name': 'USA', 'id': 'US'}] }">
+                                                                
+                                                                <div class="filter-dropdown-list-col-title">
+                                                                    TOP COUNTRIES
+                                                                </div>
+
+
+                                                                <template x-for="country in topCountry">
+                                                                    <div class="filter-item" x-bind:data-id="country.id"
+                                                                        x-bind:data-country-name="country.name"
+                                                                        x-bind:data-country-code="country.id"
+                                                                        @click="checkInList(country.id) ? removeFromList(country.id) : addToList(country.id)"
+                                                                        :class='new String(country.name).toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? "" : "hide"'>
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList(country.id) ? 'checked' : ''"
+                                                                                type="checkbox"></div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app"
+                                                                                x-bind:id="new String(country.id)"
+                                                                                x-text="country.name">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+
+                                                            </div>
+
+                                                            <!-- REST OF THE WORLD -->
+                                                            <div class="filter-dropdown-list-col">
+                                                                <div class="filter-dropdown-list-col-title">
+                                                                    REST OF THE WORLD
+                                                                </div>
+
+                                                                {% for obj in list_country %}
+                                                                <div class="filter-item"
+                                                                    data-country-name="{{obj.country_name}}"
+                                                                    data-country-code="{{obj.country_id}}"
+                                                                    data-id="{{obj.country_id}}"
+                                                                    @click="checkInList($el.dataset.countryCode) ? removeFromList($el.dataset.countryCode) : addToList($el.dataset.countryCode)"
+                                                                    :class='$el.dataset.countryName.toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? "" : "hide"'>
+
+                                                                    <div class="form-check">
+                                                                        <div class="form-check-input"
+                                                                            :class="checkInList($el.parentElement.parentElement.dataset.countryCode) ? 'checked' : ''"
+                                                                            type="checkbox"></div>
+                                                                    </div>
+
+                                                                    <div class="filter-item-meta">
+                                                                        <div class="filter-item-name name-app"
+                                                                            x-bind:id="$el.parentElement.parentElement.dataset.countryCode">
+                                                                            {{obj.country_name}}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="filter-dropdown-footer">
+                                                            <button type="button"
+                                                                class="btn btn-danger btn-sm btn-filter-cancel"
+                                                                @click="open = false">
+                                                                Cancel
+                                                            </button>
+                                                            <button type="submit"
+                                                                class="btn btn-primary btn-sm ms-2 btn-filter-submit">
+                                                                Apply
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <ul class="list-select">
+                                                        <template x-for="game in listGameSelect">
+                                                            <li class="list-select-item">
+                                                                <div class="list-select-name" x-text="game.name"></div>
+                                                                <div class="list-select-cancel"
+                                                                    @click="removeFromList(game.id)">
+                                                                    <i class="bi bi-dash-square"></i>
+                                                                </div>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            {% if request.GET.exclude_adnet %}
+                                            <div class="filter-box"
+                                                x-data="dropdownCustom(new String('{{selected_adsource}}').length > 0 ? new String('{{selected_adsource}}').split(',') : [], false, true)">
+                                                {% else %}
+                                                <div class="filter-box"
+                                                    x-data="dropdownCustom(new String('{{selected_adsource}}').length > 0 ? new String('{{selected_adsource}}').split(',') : [])">
+                                                    {% endif %}
+
+                                                    <div class="filter-box-title">
+                                                        Ad Sources
+                                                    </div>
+
+                                                    <div class="filter-dropdown" @click.outside="open = false">
+                                                        <input type="hidden" x-bind:value="formatResult()"
+                                                            x-bind:name="include ? 'include_adnet' : 'exclude_adnet'"
+                                                            class="form-control">
+
+                                                        <div class="filter-dropdown-display" @click="toggle"
+                                                            x-text="displaySelect('All Ads ({{count_ads}})')">
+                                                        </div>
+
+                                                        <div class="filter-dropdown-content" id="app-adnet"
+                                                            x-show="open" x-transition>
+                                                            <div class="filter-dropdown-header">
+                                                                <div class="filter-header-row">
+                                                                    <div class="filter-header-row-content">
+                                                                        <div class="filter-search-wrap">
+                                                                            <input type="text"
+                                                                                class="form-control filter-search-input search"
+                                                                                placeholder="Search"
+                                                                                x-model="searchKey">
+                                                                            <div class="filter-search-icon">
+                                                                                <i class="bi bi-search"></i>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="filter-header-row">
+                                                                    <div class="filter-header-row-content">
+                                                                        <div class="filter-condition">
+                                                                            <div class="filter-condition-item"
+                                                                                @click="addInclude()">
+                                                                                <div :class="include ? 'checked' : ''"
+                                                                                    class="filter-label filter-label-include">
+                                                                                    Include
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="filter-condition-item"
+                                                                                @click="addExclude()">
+                                                                                <div :class="exclude ? 'checked' : ''"
+                                                                                    class="filter-label">
+                                                                                    Exclude
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-action">
+                                                                            <button
+                                                                                class="btn btn-danger btn-sm btn-filter-clear"
+                                                                                @click="reset" type="button">
+                                                                                Clear
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <ul class="filter-dropdown-list list">
+                                                                {% for obj in list_media %}
+                                                                <li class="filter-item"
+                                                                    @click="checkInList('{{obj}}') ? removeFromList('{{obj}}') : addToList('{{obj}}')"
+                                                                    :class='new String("{{obj}}").toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? "" : "hide"'>
+                                                                    <div class="form-check">
+                                                                        <div class="form-check-input"
+                                                                            :class="checkInList('{{obj}}') ? 'checked' : ''"
+                                                                            type="checkbox"></div>
+                                                                    </div>
+
+                                                                    <div class="filter-item-meta">
+                                                                        <div class="filter-item-name name-app"
+                                                                            x-bind:id="new String('{{obj}}').replaceAll('.', '-')">
+                                                                            {{obj}}
+                                                                        </div>
+                                                                    </div>
+                                                                </li>
+                                                                {% endfor %}
+                                                            </ul>
+
+                                                            <!--<div class="filter-dropdown-list list">
+                                                                <div class="filter-dropdown-list-col">
+                                                                    <div class="filter-dropdown-list-col-title">
+                                                                        Ad network 1
+                                                                    </div>
+                                                                    {% for obj in list_network %}
+                                                                    <div class="filter-item" data-id="{{obj}}"
+                                                                            @click="checkInList('{{obj}}') ? removeFromList('{{obj}}') : addToList('{{obj}}')"
+                                                                            :class="new String('{{obj}}').toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? '' : 'hide' ">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                    :class="checkInList('{{obj}}') ? 'checked' : ''"
+                                                                                    type="checkbox"></div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app"
+                                                                                    x-bind:id="new String('{{obj}}')">
+                                                                                {{obj}}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    {% endfor %}
+                                                                </div>
+                                                                <div class="filter-dropdown-list-col">
+                                                                    <div class="filter-dropdown-list-col-title">
+                                                                        Ad network 2
+                                                                    </div>
+                                                                    {% for obj in list_media %}
+                                                                    <div class="filter-item" data-id="{{obj}}"
+                                                                            @click="checkInList('{{obj}}') ? removeFromList('{{obj}}') : addToList('{{obj}}')"
+                                                                            :class="new String('{{obj}}').toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? '' : 'hide' ">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                    :class="checkInList('{{obj}}') ? 'checked' : ''"
+                                                                                    type="checkbox"></div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app"
+                                                                                    x-bind:id="new String('{{obj}}')">
+                                                                                {{obj}}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    {% endfor %}
+                                                                </div>
+
+                                                            </div>-->
+
+                                                            <div class="filter-dropdown-footer">
+                                                                <button type="button"
+                                                                    class="btn btn-danger btn-sm btn-filter-cancel"
+                                                                    @click="open = false">
+                                                                    Cancel
+                                                                </button>
+                                                                <button type="submit"
+                                                                    class="btn btn-primary btn-sm ms-2 btn-filter-submit">
+                                                                    Apply
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <ul class="list-select">
+                                                            <template x-for="game in listGameSelect">
+                                                                <li class="list-select-item">
+                                                                    <div class="list-select-name" x-text="game.name">
+                                                                    </div>
+                                                                    <div class="list-select-cancel"
+                                                                        @click="removeFromList(game.id)">
+                                                                        <i class="bi bi-dash-square"></i>
+                                                                    </div>
+                                                                </li>
+                                                            </template>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+
+                                                {% if request.GET.exclude_partner %}
+                                                <div class="filter-box"
+                                                    x-data="dropdownCustom(new String('{{selected_company}}').length > 0 ? new String('{{selected_company}}').split(',') : [], false, true)">
+                                                    {% else %}
+                                                    <div class="filter-box"
+                                                        x-data="dropdownCustom(new String('{{selected_company}}').length > 0 ? new String('{{selected_company}}').split(',') : [])">
+                                                        {% endif %}
+
+                                                        <div class="filter-box-title">
+                                                            Company
+                                                        </div>
+
+                                                        <div class="filter-dropdown" @click.outside="open = false">
+                                                            <input type="hidden" x-bind:value="formatResult()"
+                                                                x-bind:name="include ? 'include_partner' : 'exclude_partner'"
+                                                                class="form-control">
+
+                                                            <div class="filter-dropdown-display" @click="toggle"
+                                                                x-text="displaySelect('All Partner ({{count_company}})')">
+                                                            </div>
+
+                                                            <div class="filter-dropdown-content" id="app-list"
+                                                                x-show="open" x-transition>
+                                                                <div class="filter-dropdown-header">
+                                                                    <div class="filter-header-row">
+                                                                        <div class="filter-header-row-content">
+                                                                            <div class="filter-search-wrap">
+                                                                                <input type="text"
+                                                                                    class="form-control filter-search-input search"
+                                                                                    x-model="searchKey"
+                                                                                    placeholder="Search">
+                                                                                <div class="filter-search-icon">
+                                                                                    <i class="bi bi-search"></i>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="filter-header-row">
+                                                                        <div class="filter-header-row-content">
+                                                                            <div class="filter-condition">
+                                                                                <div class="filter-condition-item"
+                                                                                    @click="addInclude()">
+                                                                                    <div :class="include ? 'checked' : ''"
+                                                                                        class="filter-label filter-label-include">
+                                                                                        Include
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div class="filter-condition-item"
+                                                                                    @click="addExclude()">
+                                                                                    <div :class="exclude ? 'checked' : ''"
+                                                                                        class="filter-label">
+                                                                                        Exclude
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="filter-action">
+                                                                                <button
+                                                                                    class="btn btn-danger btn-sm btn-filter-clear"
+                                                                                    @click="reset" type="button">
+                                                                                    Clear
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <ul class="filter-dropdown-list list">
+                                                                    {% for obj in list_partner %}
+                                                                    <li class="filter-item"
+                                                                        @click="checkInList('{{obj.company_name}}') ? removeFromList('{{obj.company_name}}') : addToList('{{obj.company_name}}')"
+                                                                        :class='new String("{{obj.company_name}}").toLowerCase().indexOf(searchKey.toLowerCase()) > - 1 ? "" : "hide"'>
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('{{obj.company_name}}') ? 'checked' : ''"
+                                                                                type="checkbox"></div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app"
+                                                                                x-bind:id="new String('{{obj.company_name}}').replaceAll('.', '-')">
+                                                                                {{obj.company_name}}
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    {% endfor %}
+                                                                </ul>
+
+                                                                <div class="filter-dropdown-footer">
+                                                                    <button type="button"
+                                                                        class="btn btn-danger btn-sm btn-filter-cancel"
+                                                                        @click="open = false">
+                                                                        Cancel
+                                                                    </button>
+                                                                    <button type="submit"
+                                                                        class="btn btn-primary btn-sm ms-2 btn-filter-submit">
+                                                                        Apply
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <ul class="list-select">
+                                                                <template x-for="partner in listSelect">
+                                                                    <li class="list-select-item">
+                                                                        <div class="list-select-name" x-text="partner">
+                                                                        </div>
+                                                                        <div class="list-select-cancel"
+                                                                            @click="removeFromList(partner)">
+                                                                            <i class="bi bi-dash-square"></i>
+                                                                        </div>
+                                                                    </li>
+                                                                </template>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                    <div class="filter-box">
+                                                        <div class="filter-box-title">
+                                                            Date Range
+                                                        </div>
+                                                        <div class="filter-box-data">
+                                                            <input type="hidden" name="start_date" id="Sdate"
+                                                                value="{{request.GET.start_date}}">
+                                                            <input type="hidden" name="end_date" id="Edate"
+                                                                value="{{request.GET.end_date}}">
+                                                            <div class="input-date-range-wrap">
+                                                                <input type="text" id="date-range"
+                                                                    class="filter-dropdown-display w-100 " />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="filter-box" x-data="dropdownCustom([{{break_value}}])">
+                                                        <div class="filter-box-title">
+                                                            Break by
+                                                        </div>
+
+                                                        <select name="group_columns" class="filter-dropdown-display">
+                                                            <option value="">Select break by</option>
+                                                            {% if 'game_name' in request.GET.group_columns %}
+                                                            <option value="game_name" selected>Game</option>
+                                                            {% else %}
+                                                            <option value="game_name">Game</option>
+                                                            {% endif %}
+
+                                                            {% if 'date' in request.GET.group_columns %}
+                                                            <option value="date" selected>Date</option>
+                                                            {% else %}
+                                                            <option value="date">Date</option>
+                                                            {% endif %}
+
+                                                            {% if 'country_name' in request.GET.group_columns %}
+                                                            <option value="country_name" selected>Country</option>
+                                                            {% else %}
+                                                            <option value="country_name">Country</option>
+                                                            {% endif %}
+
+                                                            {% if 'platform' in request.GET.group_columns %}
+                                                            <option value="platform" selected>Platform</option>
+                                                            {% else %}
+                                                            <option value="platform">Platform</option>
+                                                            {% endif %}
+
+                                                            {% if 'network' in request.GET.group_columns %}
+                                                            <option value="network" selected>Network</option>
+                                                            {% else %}
+                                                            <option value="network">Network</option>
+                                                            {% endif %}
+
+                                                            {% if 'company' in request.GET.group_columns %}
+                                                            <option value="company" selected>Company</option>
+                                                            {% else %}
+                                                            <option value="company">Company</option>
+                                                            {% endif %}
+                                                        </select>
+
+                                                        <div class="filter-dropdown filter-dropdown-normal d-none"
+                                                            @click.outside="open = false">
+                                                            <!-- <input type="hidden" x-bind:value="normalResult()"
+                                                                x-bind:name="'group_columns'" class="form-control"> -->
+
+                                                            <div class="filter-dropdown-display" @click="toggle"
+                                                                x-text="displaySelectBreak('All Break')">
+                                                            </div>
+
+                                                            <div class="filter-dropdown-content" id="app-break"
+                                                                x-show="open" x-transition>
+                                                                <div class="filter-dropdown-header">
+                                                                    <div class="filter-header-row">
+                                                                        <div class="filter-header-row-content">
+                                                                            <div class="filter-action">
+                                                                                <button
+                                                                                    class="btn btn-danger btn-sm btn-filter-clear"
+                                                                                    @click="reset" type="button">
+                                                                                    Clear
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <ul class="filter-dropdown-list list">
+                                                                    <li class="filter-item" data-id="game_name"
+                                                                        @click="checkInList('game_name') ? removeFromList('game_name') : addToList('game_name')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('game_name') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Game
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="filter-item" data-id="date"
+                                                                        @click="checkInList('date') ? removeFromList('date') : addToList('date')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('date') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Date
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="filter-item" data-id="country_name"
+                                                                        @click="checkInList('country_name') ? removeFromList('country_name') : addToList('country_name')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('country_name') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Country
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="filter-item" data-id="platform"
+                                                                        @click="checkInList('platform') ? removeFromList('platform') : addToList('platform')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('platform') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Platform
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="filter-item" data-id="network"
+                                                                        @click="checkInList('network') ? removeFromList('network') : addToList('network')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('network') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Network
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="filter-item" data-id="company_name"
+                                                                        @click="checkInList('company_name') ? removeFromList('company_name') : addToList('company_name')">
+                                                                        <div class="form-check">
+                                                                            <div class="form-check-input"
+                                                                                :class="checkInList('company_name') ? 'checked' : ''"
+                                                                                type="checkbox">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="filter-item-meta">
+                                                                            <div class="filter-item-name name-app">
+                                                                                Company
+
+                                                                            </div>
+                                                                        </div>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-1">
+                                                <div class="filter-box text-end me-0"
+                                                    x-data="dropdownCustom([{{break_value}}])">
+                                                    <div class="filter-box-title">
+                                                        Action
+                                                    </div>
+                                                    <button type="submit" class="btn btn-sm btn-success">Apply</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="page-data">
+                    <!-- <form action="/export_csv" method="get">
+                        <input type="hidden" name="include_country" value="'GB'">
+                        <input type="hidden" name="group_columns" value="game_name">
+                        <button type="submit" class="btn btn-warning mb-2">Export data</button>
+                    </form> -->
+
+                    <!-- <hr>
+                    <p>Test data</p>
+                    {% for obj in list_data_game %}
+                    <p>{{obj}}</p>
+                    {% endfor %} -->
+
+                    {% if request.GET.group_columns %}
+                    <div class="table-wrap table-break" x-data="{}">
+                        <table id="example" class="table table-striped" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th class="dt-control" width="1%"></th>
+                                    {% if 'game_name' in request.GET.group_columns %}
+                                    <th>Game</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                    {% endif %}
+
+                                    {% if 'date' in request.GET.group_columns %}
+                                    <th>Date</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                    {% endif %}
+
+                                    {% if 'country_name' in request.GET.group_columns %}
+                                    <th>Country</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                    {% endif %}
+
+                                    {% if 'platform' in request.GET.group_columns %}
+                                    <th>Platform</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                    {% endif %}
+
+                                    {% if 'company' in request.GET.group_columns %}
+                                    <th>Company</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                    {% endif %}
+
+                                    {% if 'network' in request.GET.group_columns %}
+                                    <th>Media Source</th>
+                                    <th>Revenue</th>
+                                    <th>Impressions</th>
+                                    <th>ECPM</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for obj in list_data_game %}
+                                <tr>
+                                    <td class="dt-control">
+                                        <span class="d-none sub-data-row">
+                                            {{obj.subdata}}
+                                        </span>
+                                    </td>
+
+                                    {% if 'game_name' in request.GET.group_columns %}
+                                    <td>
+                                        {{obj.Game}} ({{obj.Platform}})
+                                        <span class="w3-badge w3-green w3-tiny w3-right">{{obj.New}}</span>
+                                        <a href="{{obj.Link}}" target="_blank">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </a>
+
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revinapp}}">
+                                        ${{obj.RevenueInApp}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revsum}}">${{obj.RevenueSum}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_cost}}">${{obj.Cost}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_profit}}">${{obj.Profit}}</td>
+                                    {% endif %}
+
+                                    {% if 'date' in request.GET.group_columns %}
+                                    <td>
+                                        {{obj.Date}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revinapp}}">
+                                        ${{obj.RevenueInApp}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revsum}}">${{obj.RevenueSum}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_cost}}">${{obj.Cost}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_profit}}">${{obj.Profit}}</td>
+                                    {% endif %}
+
+                                    {% if 'country_name' in request.GET.group_columns %}
+                                    <td>{{obj.Country}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revinapp}}">
+                                        ${{obj.RevenueInApp}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revsum}}">${{obj.RevenueSum}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_cost}}">${{obj.Cost}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_profit}}">${{obj.Profit}}</td>
+                                    {% endif %}
+
+                                    {% if 'platform' in request.GET.group_columns %}
+                                    <td>
+                                        {{obj.Platform}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revinapp}}">
+                                        ${{obj.RevenueInApp}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revsum}}">${{obj.RevenueSum}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_cost}}">${{obj.Cost}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_profit}}">${{obj.Profit}}</td>
+                                    {% endif %}
+
+                                    {% if 'company' in request.GET.group_columns %}
+                                    <td>
+                                        {{obj.Company}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revinapp}}">
+                                        ${{obj.RevenueInApp}}</span>
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revsum}}">
+                                        ${{obj.RevenueSum}}</span>
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_cost}}">${{obj.Cost}}</td>
+                                    <td class="format-currency" data-rate="{{obj.rate_profit}}">${{obj.Profit}}</td>
+                                    {% endif %}
+
+                                    {% if 'network' in request.GET.group_columns %}
+                                    <td>
+                                        {{obj.Network}}
+                                    </td>
+                                    <td class="format-currency" data-rate="{{obj.rate_revads}}">${{obj.RevenueAds}}</td>
+                                    <td data-rate="{{obj.rate_imp}}">{{obj.Impression}}</span></td>
+                                    <td data-rate="{{obj.rate_ecpm}}">{{obj.ECPM}}</td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    {% if 'game_name' in request.GET.group_columns %}
+                                    <th colspan="2">
+                                        Total
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    {% endif %}
+
+                                    {% if 'date' in request.GET.group_columns %}
+                                    <th colspan="2">
+                                        Total
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    {% endif %}
+
+                                    {% if 'country' in request.GET.group_columns %}
+                                    <th colspan="2">
+                                        Total
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    {% endif %}
+
+                                    {% if 'platform' in request.GET.group_columns %}
+                                    <th colspan="2">
+                                        Total
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    {% endif %}
+
+                                    {% if 'network' in request.GET.group_columns %}
+                                    <th colspan="2">
+                                        Total
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    {% endif %}
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="table-wrap">
+                        <table id="example" class="table table-striped nowrap" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th class="dt-control" width="1%"></th>
+                                    <th>Game</th>
+                                    <th>Revenue In App</th>
+                                    <th>Revenue Ads</th>
+                                    <th>Revenue All</th>
+                                    <th>Cost</th>
+                                    <th>Profit</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for obj in list_data_game %}
+                                <tr>
+                                    <td class="dt-control">
+                                        <span class="d-none sub-data-row">
+                                            {{obj.subdata}}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {{obj.Game}} ({{obj.Platform}})
+                                        <a href="{{obj.Link}}" target="_blank">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </a>
+                                        <span class="w3-badge w3-green w3-tiny w3-right">{{obj.New}}</span>
+                                    </td>
+                                    <td class="format-currency">${{obj.RevenueInApp}}</td>
+                                    <td class="format-currency">${{obj.RevenueAds}}</td>
+                                    <td class="format-currency">${{obj.RevenueSum}}</td>
+                                    <td class="format-currency">${{obj.Cost}}</td>
+                                    <td class="format-currency">${{obj.Profit}}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="2">Total</th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{% static 'app/plugins/jquery-3.6.0.min.js' %}"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+
+    <script
+        src="{% static 'app/plugins/vanilla-datetimerange-picker-main/dist/vanilla-datetimerange-picker.js' %}"></script>
+
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
+    <script src="https://cdn.datatables.net/plug-ins/1.10.9/api/sum().js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
+
+    <!-- <script src="{% static 'app/scripts/main.js' %}?v={% now 'U' %}"></script> -->
+
+    <script>
+        $(document).ready(function () {
+            let SdateVal = $('#Sdate').val();
+            let EDateVal = $('#Edate').val();
+
+            if (SdateVal === '') {
+                $('#Sdate').val(moment().subtract(13, 'd').format('YYYY-MM-DD'));
+            }
+
+            if (EDateVal === '') {
+                $('#Edate').val(moment().format('YYYY-MM-DD'));
+            }
+
+            let drp = new DateRangePicker(
+                'date-range',
+                {
+                    timePicker: false,
+                    opens: 'left',
+                    ranges: {
+                        Today: [moment().startOf('day'), moment().endOf('day')],
+                        Yesterday: [
+                            moment().subtract(1, 'days').startOf('day'),
+                            moment().subtract(1, 'days').endOf('day'),
+                        ],
+                        'Last 7 Days': [
+                            moment().subtract(6, 'days').startOf('day'),
+                            moment().endOf('day'),
+                        ],
+                        'Last 14 Days': [
+                            moment().subtract(13, 'days').startOf('day'),
+                            moment().endOf('day'),
+                        ],
+                        'This Month': [
+                            moment().startOf('month').startOf('day'),
+                            moment().endOf('month').endOf('day'),
+                        ],
+                        'Last Month': [
+                            moment().subtract(1, 'months').startOf('month'),
+                            moment().subtract(1, 'months').endOf('month'),
+                        ],
+                    },
+                    locale: {
+                        format: 'YYYY-MM-DD',
+                    },
+                    maxDate: moment().format('YYYY-MM-DD')
+                },
+                function (start, end) {
+                    $('#Sdate').val(start.format('YYYY-MM-DD'));
+                    $('#Edate').val(end.format('YYYY-MM-DD'));
+                }
+            );
+
+            drp.setStartDate($('#Sdate').val());
+            drp.setEndDate($('#Edate').val());
+
+            //App filter
+
+            let options = {
+                valueNames: ['name-app'],
+            };
+
+            /* Formatting function for row details - modify as you need */
+            function format(d) {
+                let text = $(d).find('.sub-data-row').text();
+                let subData = eval('(' + text + ')');
+                let html = '';
+                let subTableHead =
+                    '<thead>' +
+                    '<tr>' +
+                    '<th>Attempts</th>' +
+                    '<th>ECPM</th>' +
+                    '<th>Impression</th>' +
+                    '<th>Installs</th>' +
+                    '<th>ActivityRevenue</th>' +
+                    '<th>ROI</th>' +
+                    '<th>AverageECPI</th>' +
+                    '<th>UninstallRate</th>' +
+                    '</tr>' +
+                    '</thead>';
+
+                let subTableRow =
+                    '<tr>' +
+                    '<td>' +
+                    subData.Attempts +
+                    '</td>' +
+                    '<td>' +
+                    subData.ECPM +
+                    '</td>' +
+                    '<td>' +
+                    subData.Impression +
+                    '</td>' +
+                    '<td>' +
+                    subData.Installs +
+                    '</td>' +
+                    '<td>' +
+                    subData.ActivityRevenue +
+                    '</td>' +
+                    '<td>' +
+                    subData.ROI +
+                    '</td>' +
+                    '<td>' +
+                    subData.AverageECPI +
+                    '</td>' +
+                    '<td>' +
+                    subData.UninstallRate +
+                    '</td>' +
+                    '</tr>';
+
+                html += '<table class="table mb-0 border table-dark table-subrow">';
+                html += '<tbody>';
+                html += subTableHead;
+                html += subTableRow;
+                html += '</tbody>';
+                html += '</table>';
+
+                return html;
+            }
+
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            let breakBy = urlParams.get('group_columns');
+            let column = breakBy === 'network' ? 3 : 5;
+
+            let table = $('#example').DataTable({
+                responsive: false,
+                dom: '<"top-table"f>rt<"bottom"<"wrap-bottom"<"wrap-bottom-left"i><"wrap-bottom-right"<"me-2"l>pu>>><"clear">',
+                lengthMenu: [
+                    [10, 25, 50, 100, -1],
+                    [10, 25, 50, 100, 'All'],
+                ],
+                initComplete: function () {
+                    let api = this.api();
+                    nb_cols = api.columns().nodes().length;
+                    api.rows().every(function (rowIdx, tableLoop, rowLoop) {
+                        let mySum = 0;
+                        $('td:gt(2):not(:last-child)', this.node()).each(function () {
+                            mySum += parseFloat($(this).text().replace('$', ''), 10);
+                        });
+                    });
+
+                    j = nb_cols - column;
+                    i = 1;
+
+                    while (j < nb_cols) {
+                        let pageTotal = api.column(j, { page: 'all' }).data().sum();
+                        $('#example tfoot tr:eq(0) th:eq(' + i + ')').html(
+                            `$ ${numeral(Math.round(pageTotal * 100) / 100).format(
+                                '0,0.00'
+                            )}`
+                        );
+                        i++;
+                        j++;
+                    }
+
+                    let columnCount = api.columns().nodes().length;
+                    let rowCount = api.rows().nodes().length;
+                    let maxColumnTotal = columnCount - column;
+
+                    for (let row = 0; row < rowCount; row++) {
+                        for (
+                            let column = columnCount - 1;
+                            column >= maxColumnTotal;
+                            column--
+                        ) {
+                            let currentData = api
+                                .cell(row, column)
+                                .data()
+                                .replace('$', '');
+                            // let node = $(api.cell(row, column).node());
+                            // let rate = Number(node.data('rate'));
+                            let currentDataFormat =
+                                numeral(currentData).format('0,0.00');
+                            // let dataCell = `<span>$${currentDataFormat}</span> <span class="badge ${
+                            //     rate > 0
+                            //         ? 'bg-success'
+                            //         : rate < 0
+                            //         ? 'bg-danger'
+                            //         : 'bg-secondary'
+                            // }">${rate} %</span>`;
+
+                            // console.log(
+                            //     `[${Math.random()}] | [Current data]: ${currentData} | [Data format]: ${currentDataFormat} | [Data cell]: ${dataCell}`
+                            // );
+                            api.cell(row, column).data(`$${currentDataFormat}`);
+                        }
+                    }
+                },
+                drawCallback: function () { },
+                order: [],
+                columnDefs: [
+                    {
+                        targets: 'no-sort',
+                        orderable: false,
+                    },
+                ],
+            });
+
+            $('#example tbody').on('click', 'td.dt-control', function () {
+                var tr = $(this).closest('tr');
+                var row = table.row(tr);
+
+                if (row.child.isShown()) {
+                    // This row is already open - close it
+                    row.child.hide();
+                    tr.removeClass('shown');
+                } else {
+                    // Open this row
+                    row.child(format(row.node())).show();
+                    tr.addClass('shown');
+                }
+            });
+
+            $('.format-currency').each((index, item) => {
+                $(item).text('$' + numeral($(item).text()).format('0,0.00'));
+            });
+        });
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data(
+                'dropdownCustom',
+                (initSelect = [], initInclude = true, initexclude = false) => ({
+                    open: false,
+                    listSelect: [],
+                    listGameSelect: [],
+                    include: true,
+                    exclude: false,
+                    searchKey: '',
+                    countries: [],
+                    async init() {
+                        setTimeout(() => {
+                            console.log(initSelect);
+                            initSelect.forEach((item, index) => {
+                                this.addToList(item);
+                            });
+
+                            this.include = initInclude;
+                            this.exclude = initexclude;
+                        }, 0);
+                    },
+                    addInclude() {
+                        this.include = true;
+                        this.exclude = false;
+                    },
+                    addExclude() {
+                        this.include = false;
+                        this.exclude = true;
+                    },
+                    toggle() {
+                        this.open = !this.open;
+                    },
+                    addToList(value) {
+                        this.listSelect.push(value);
+                        this.listGameSelect.push({
+                            name: $(
+                                '#' + new String(value).replaceAll('.', '-')
+                            ).text(),
+                            id: value,
+                        });
+                    },
+                    removeFromList(value) {
+                        let index = this.listSelect.indexOf(value);
+                        this.listSelect.splice(index, 1);
+
+                        this.listGameSelect.forEach((item, index) => {
+                            if (item.id === value) {
+                                this.listGameSelect.splice(index, 1);
+                            }
+                        });
+                    },
+                    checkInList(value) {
+                        return this.listSelect.includes(value);
+                    },
+                    displaySelect(defaultText) {
+                        return this.listSelect.length > 0
+                            ? (this.include ? 'Include: ' : 'Exclude: ') +
+                            this.listSelect.length +
+                            ' Selected'
+                            : defaultText;
+                    },
+                    displaySelectNormal(defaultText) {
+                        return this.listSelect.length > 0
+                            ? this.listSelect.length + ' Selected'
+                            : defaultText;
+                    },
+                    reset() {
+                        this.listSelect = [];
+                        this.listGameSelect = [];
+                        this.include = true;
+                        this.exclude = false;
+                        this.searchKey = '';
+                    },
+                    formatResult() {
+                        return this.listSelect.map((item, index) => {
+                            return item
+                        });
+                    },
+                    normalResult() {
+                        return this.listSelect;
+                    },
+                    displaySelectBreak(defaultText) {
+                        let newSelects = this.listSelect.map((item, index) => {
+                            switch (item) {
+                                case 'game_name':
+                                    return 'Game';
+                                case 'date':
+                                    return 'Day';
+                                case 'country_name':
+                                    return 'Country';
+                                case 'platform':
+                                    return 'Platform';
+                                case 'network':
+                                    return 'Network';
+                                case 'company_name':
+                                    return 'Company';
+                            }
+                        });
+
+                        return this.listSelect.length > 0
+                            ? 'Break by: ' + newSelects.join(', ')
+                            : defaultText;
+                    },
+                })
+            );
+        });
+    </script>
+</body>
+
+</html>
